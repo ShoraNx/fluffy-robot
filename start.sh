@@ -1,5 +1,5 @@
 #!/bin/bash
-
+python tgbot.py
 # Выход при ошибке
 set -e
 
