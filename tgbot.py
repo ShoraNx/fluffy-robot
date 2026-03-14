@@ -49,7 +49,7 @@ CITY_TRANSLATION = {
     'сочи': 'Sochi'
 }
 
-# Функция для получения текущей погоды через OpenWeatherMap
+# Функция для получения текущей погоды через OpenMap
 def get_current_weather(city_name):
     """Получает текущую погоду через OpenWeatherMap API"""
     
@@ -168,14 +168,14 @@ def format_weather(weather_data, city_name):
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     welcome_text = (
-        "👋 **Привет! Я бот погоды.**\n\n"
+        "👋 **Привет! Я бот Синоптик!**\n\n"
         "🌤 **Команды:**\n"
-        "• `/weather <город>` - узнать погоду\n"
+        "• `/weather <город> или просто <Город>` - узнать погоду\n"
         "• `/help` - справка\n\n"
         "📝 **Примеры:**\n"
         "`/weather Москва`\n"
-        "`/weather London`\n"
-        "`/weather New York`\n\n"
+        "`London`\n"
+        "`Уфа`\n\n"
         "Я понимаю русские и английские названия городов!"
     )
     bot.reply_to(message, welcome_text, parse_mode='Markdown')
