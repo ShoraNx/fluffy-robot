@@ -121,9 +121,9 @@ def search_city_alternative(city_name):
     except:
         return None
 
-# Функция форматирования погоды для вывода
+# Функция форматирования погоды для вывода с правильным временем
 def format_weather(weather_data, city_name):
-    """Форматирует данные о погоде для красивого вывода"""
+    """Форматирует данные о погоде для красивого вывода с правильным временем"""
     try:
         # Основные данные
         temp = weather_data['main']['temp']
@@ -152,9 +152,20 @@ def format_weather(weather_data, city_name):
         country = weather_data.get('sys', {}).get('country', '')
         location = f"{city_display}, {country}" if country else city_display
         
+        # ПОЛУЧАЕМ ПРАВИЛЬНОЕ ВРЕМЯ ИЗ API
+        # Время из API приходит в UTC (timestamp)
+        timestamp = weather_data.get('dt', 0)
+        timezone_offset = weather_data.get('timezone', 0)  # Смещение в секундах
+        
+        # Создаем datetime из timestamp с учетом смещения
+        city_time = datetime.fromtimestamp(timestamp + timezone_offset)
+        
+        # Форматируем время
+        time_str = city_time.strftime('%d.%m.%Y %H:%M')
+        
         result = (
             f"🌍 **Погода в {location}**\n"
-            f"📅 {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+            f"📅 {time_str}\n\n"
             f"🌡 **Температура:** {temp:.1f}°C\n"
             f"🤔 **Ощущается как:** {feels_like:.1f}°C\n"
             f"☁️ **Описание:** {description}\n"
