@@ -7,7 +7,6 @@ import time
 import threading
 from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, request
 
 # ================= НАСТРОЙКИ =================
 # Токен вашего Telegram-бота (получить у @BotFather)
