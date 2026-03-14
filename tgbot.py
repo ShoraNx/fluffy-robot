@@ -27,8 +27,10 @@ app = Flask(__name__)
 # Словарь для перевода русских названий городов на английские
 CITY_TRANSLATION = {
     'москва': 'Moscow',
+    'мск': 'Moscow',
     'санкт-петербург': 'Saint Petersburg',
     'спб': 'Saint Petersburg',
+    'питер': 'Saint Petersburg',
     'петербург': 'Saint Petersburg',
     'казань': 'Kazan',
     'новосибирск': 'Novosibirsk',
@@ -46,7 +48,8 @@ CITY_TRANSLATION = {
     'краснодар': 'Krasnodar',
     'саратов': 'Saratov',
     'тюмень': 'Tyumen',
-    'сочи': 'Sochi'
+    'сочи': 'Sochi',
+    'БКК': 'Bangkok'
 }
 
 # Функция для получения текущей погоды через OpenMap
