@@ -7,26 +7,25 @@ import time
 import threading
 from datetime import datetime
 from dotenv import load_dotenv
+from flask import Flask, jsonify
 
 # ================= НАСТРОЙКИ =================
 # Токен вашего Telegram-бота (получить у @BotFather)
 TELEGRAM_TOKEN = '8717465292:AAGaMse1y8ZlLmXjEeXoyw8WnuvuPwCF_fk'
 
 # Токен API Gismeteo (получить на gismeteo.ru/api/)
-GISMETEO_TOKEN = 'X-Gismeteo-Token'
+GISMETEO_TOKEN = 'ваш_реальный_токен_gismeteo'  # ЗАМЕНИТЕ НА РЕАЛЬНЫЙ ТОКЕН!
 
 # ID города по умолчанию (например, Москва - 4368)
 DEFAULT_CITY_ID = 4368
 
-# Порт для веб-сервера (Render требует, чтобы приложение слушало порт)
+# Порт для веб-сервера (Render передает это через переменную окружения)
 PORT = int(os.getenv('PORT', 10000))
-
-# URL вашего приложения на Render (для вебхуков)
-# Пример: https://your-app-name.onrender.com
-RENDER_URL = os.getenv('https://fluffy-robot-1.onrender.com', '')
 # =============================================
 
+# Инициализация бота и Flask
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
+app = Flask(__name__)
 
 # Функция для получения текущей погоды по ID города
 def get_current_weather(city_id):
@@ -41,7 +40,8 @@ def get_current_weather(city_id):
     }
     
     try:
-        response = requests.get(url, headers=headers, params=params)
+        print(f"Запрос погоды для city_id: {city_id}")
+        response = requests.get(url, headers=headers, params=params, timeout=10)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -62,7 +62,8 @@ def search_city(city_name):
     }
     
     try:
-        response = requests.get(url, headers=headers, params=params)
+        print(f"Поиск города: {city_name}")
+        response = requests.get(url, headers=headers, params=params, timeout=10)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -129,6 +130,11 @@ def send_welcome(message):
 # Обработчик команды /weather
 @bot.message_handler(commands=['weather'])
 def send_weather(message):
+    # Проверка наличия токена Gismeteo
+    if GISMETEO_TOKEN == 'ваш_реальный_токен_gismeteo':
+        bot.reply_to(message, "❌ **Ошибка:** API Gismeteo не настроено. Пожалуйста, замените токен в коде.", parse_mode='Markdown')
+        return
+    
     # Получаем название города из сообщения
     try:
         city_name = message.text.split(' ', 1)[1]
@@ -171,7 +177,49 @@ def send_weather(message):
 def echo_all(message):
     bot.reply_to(message, "Используйте команду /weather <город>")
 
-# Запуск бота
+# Flask маршруты для проверки работоспособности
+@app.route('/')
+def index():
+    return jsonify({
+        'status': 'ok',
+        'message': 'Weather bot is running!',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'healthy',
+        'telegram_bot': 'running',
+        'timestamp': datetime.now().isoformat()
+    })
+
+def run_bot():
+    """Запускает бота в отдельном потоке"""
+    print("🔄 Запуск бота в отдельном потоке...")
+    try:
+        bot.infinity_polling()
+    except Exception as e:
+        print(f"❌ Ошибка в работе бота: {e}")
+        time.sleep(5)
+        run_bot()
+
+# Запуск приложения
 if __name__ == "__main__":
-    print("Бот запущен...")
-    bot.infinity_polling()
+    print("\n" + "="*50)
+    print("🤖 TELEGRAM БОТ С ПОГОДОЙ")
+    print("="*50)
+    print(f"📊 Статус:")
+    print(f"  • Telegram токен: {'✅' if TELEGRAM_TOKEN else '❌'}")
+    print(f"  • Gismeteo токен: {'⚠️ не настроен' if GISMETEO_TOKEN == 'ваш_реальный_токен_gismeteo' else '✅'}")
+    print(f"  • Порт для веб-сервера: {PORT}")
+    print("="*50 + "\n")
+    
+    # Запускаем бота в отдельном потоке
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    print("✅ Бот запущен в фоновом потоке")
+    
+    # Запускаем Flask сервер для поддержки порта
+    print(f"🚀 Запуск веб-сервера на порту {PORT}...")
+    app.run(host='0.0.0.0', port=PORT)
