@@ -178,8 +178,9 @@ def send_welcome(message):
         "📝 **Примеры:**\n"
         "`/weather Москва`\n"
         "`London`\n"
+        "`СПб`\n"
         "`Уфа`\n\n"
-        "Я понимаю русские и английские названия городов!"
+        "Я понимаю русские и английские названия городов, а также сокращения!"
     )
     bot.reply_to(message, welcome_text, parse_mode='Markdown')
 
