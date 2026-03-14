@@ -14,7 +14,7 @@ from flask import Flask, jsonify
 TELEGRAM_TOKEN = '8717465292:AAGaMse1y8ZlLmXjEeXoyw8WnuvuPwCF_fk'
 
 # API ключ OpenWeatherMap 
-OPENWEATHER_API_KEY = '1876ff689a7c2880fc5a535a4a8c2966' 
+OPENWEATHER_API_KEY = '5816b5d6b1b264efa1397d0b5fad8c51' 
 
 # Порт для веб-сервера (Render передает это через переменную окружения)
 PORT = int(os.getenv('PORT', 10000))
