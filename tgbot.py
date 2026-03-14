@@ -14,7 +14,7 @@ from flask import Flask, jsonify
 TELEGRAM_TOKEN = '8717465292:AAGaMse1y8ZlLmXjEeXoyw8WnuvuPwCF_fk'
 
 # Токен API Gismeteo (получить на gismeteo.ru/api/)
-GISMETEO_TOKEN = 'ваш_реальный_токен_gismeteo'  # ЗАМЕНИТЕ НА РЕАЛЬНЫЙ ТОКЕН!
+GISMETEO_TOKEN = 'X-Gismeteo-Token'  
 
 # ID города по умолчанию (например, Москва - 4368)
 DEFAULT_CITY_ID = 4368
