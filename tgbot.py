@@ -12,6 +12,13 @@ GISMETEO_TOKEN = 'X-Gismeteo-Token'
 
 # ID города по умолчанию (например, Москва - 4368)
 DEFAULT_CITY_ID = 4368
+
+# Порт для веб-сервера (Render требует, чтобы приложение слушало порт)
+PORT = int(os.getenv('PORT', 10000))
+
+# URL вашего приложения на Render (для вебхуков)
+# Пример: https://your-app-name.onrender.com
+RENDER_URL = os.getenv('https://fluffy-robot-1.onrender.com', '')
 # =============================================
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
