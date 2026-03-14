@@ -13,11 +13,8 @@ from flask import Flask, jsonify
 # Токен вашего Telegram-бота (получить у @BotFather)
 TELEGRAM_TOKEN = '8717465292:AAGaMse1y8ZlLmXjEeXoyw8WnuvuPwCF_fk'
 
-# Токен API Gismeteo (получить на gismeteo.ru/api/)
-GISMETEO_TOKEN = 'X-Gismeteo-Token'  
-
-# ID города по умолчанию (например, Москва - 4368)
-DEFAULT_CITY_ID = 4368
+# API ключ OpenWeatherMap 
+OPENWEATHER_API_KEY = '1876ff689a7c2880fc5a535a4a8c2966' 
 
 # Порт для веб-сервера (Render передает это через переменную окружения)
 PORT = int(os.getenv('PORT', 10000))
@@ -27,92 +24,140 @@ PORT = int(os.getenv('PORT', 10000))
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
 
-# Функция для получения текущей погоды по ID города
-def get_current_weather(city_id):
-    """Получает текущую погоду через API Gismeteo"""
-    url = f"https://api.gismeteo.net/v2/weather/current/{city_id}/"
-    headers = {
-        'X-Gismeteo-Token': GISMETEO_TOKEN,
-        'Accept': 'application/json'
-    }
+# Словарь для перевода русских названий городов на английские
+CITY_TRANSLATION = {
+    'москва': 'Moscow',
+    'санкт-петербург': 'Saint Petersburg',
+    'спб': 'Saint Petersburg',
+    'петербург': 'Saint Petersburg',
+    'казань': 'Kazan',
+    'новосибирск': 'Novosibirsk',
+    'екатеринбург': 'Yekaterinburg',
+    'нижний новгород': 'Nizhny Novgorod',
+    'самара': 'Samara',
+    'омск': 'Omsk',
+    'ростов-на-дону': 'Rostov-on-Don',
+    'ростов': 'Rostov-on-Don',
+    'уфа': 'Ufa',
+    'красноярск': 'Krasnoyarsk',
+    'пермь': 'Perm',
+    'воронеж': 'Voronezh',
+    'волгоград': 'Volgograd',
+    'краснодар': 'Krasnodar',
+    'саратов': 'Saratov',
+    'тюмень': 'Tyumen',
+    'сочи': 'Sochi'
+}
+
+# Функция для получения текущей погоды через OpenWeatherMap
+def get_current_weather(city_name):
+    """Получает текущую погоду через OpenWeatherMap API"""
+    
+    # Проверяем, есть ли город в словаре перевода
+    city_lower = city_name.lower().strip()
+    if city_lower in CITY_TRANSLATION:
+        city_name = CITY_TRANSLATION[city_lower]
+        print(f"Перевели город на английский: {city_name}")
+    
+    url = "http://api.openweathermap.org/data/2.5/weather"
     params = {
-        'lang': 'ru'
+        'q': city_name,
+        'appid': OPENWEATHER_API_KEY,
+        'units': 'metric',  # Для температуры в Цельсиях
+        'lang': 'ru'  # Для описания на русском
     }
     
     try:
-        print(f"Запрос погоды для city_id: {city_id}")
-        response = requests.get(url, headers=headers, params=params, timeout=10)
+        print(f"Запрос погоды для города: {city_name}")
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         print(f"Ошибка API: {e}")
+        if hasattr(e, 'response') and e.response:
+            print(f"Статус код: {e.response.status_code}")
+            print(f"Ответ: {e.response.text}")
         return None
 
-# Функция для поиска города по названию
-def search_city(city_name):
-    """Ищет город по названию через API Gismeteo"""
-    url = "https://api.gismeteo.net/v2/search/cities/"
-    headers = {
-        'X-Gismeteo-Token': GISMETEO_TOKEN,
-        'Accept': 'application/json'
-    }
+# Функция для получения погоды по координатам (запасной вариант)
+def get_weather_by_coords(lat, lon):
+    """Получает погоду по координатам"""
+    url = "http://api.openweathermap.org/data/2.5/weather"
     params = {
-        'query': city_name,
+        'lat': lat,
+        'lon': lon,
+        'appid': OPENWEATHER_API_KEY,
+        'units': 'metric',
         'lang': 'ru'
     }
     
     try:
-        print(f"Поиск города: {city_name}")
-        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Ошибка API при поиске города: {e}")
+    except:
+        return None
+
+# Функция для поиска города (если прямое название не работает)
+def search_city_alternative(city_name):
+    """Пытается найти город через поиск"""
+    url = "http://api.openweathermap.org/geo/1.0/direct"
+    params = {
+        'q': city_name,
+        'limit': 1,
+        'appid': OPENWEATHER_API_KEY
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        if data and len(data) > 0:
+            return data[0]
+        return None
+    except:
         return None
 
 # Функция форматирования погоды для вывода
 def format_weather(weather_data, city_name):
     """Форматирует данные о погоде для красивого вывода"""
     try:
-        response = weather_data['response']
-        
-        # Температура
-        temp_c = response['temperature']['air']['C']
-        
-        # Ощущается как
-        comfort_c = response['temperature']['comfort']['C']
+        # Основные данные
+        temp = weather_data['main']['temp']
+        feels_like = weather_data['main']['feels_like']
+        humidity = weather_data['main']['humidity']
+        pressure = weather_data['main']['pressure']  # в гПа
         
         # Описание погоды
-        description = response['description']['full']
-        
-        # Влажность
-        humidity = response['humidity']['percent']
-        
-        # Давление
-        pressure_mm = response['pressure']['mm_hg_atm']
+        description = weather_data['weather'][0]['description'].capitalize()
         
         # Ветер
-        wind_speed = response['wind']['speed']['m_s']
-        wind_direction_deg = response['wind']['direction']['degree']
+        wind_speed = weather_data['wind']['speed']
+        wind_deg = weather_data['wind'].get('deg', 0)
         
         # Направление ветра текстом
         directions = ['северный', 'северо-восточный', 'восточный', 'юго-восточный', 
                       'южный', 'юго-западный', 'западный', 'северо-западный']
-        wind_dir_text = directions[round(wind_direction_deg / 45) % 8]
+        wind_dir_index = round(wind_deg / 45) % 8
+        wind_dir_text = directions[wind_dir_index]
         
-        # Дата обновления
-        local_time = datetime.fromisoformat(response['date']['local'].replace(' ', 'T'))
-        time_str = local_time.strftime('%d.%m.%Y %H:%M')
+        # Давление в мм рт.ст. (1 гПа ≈ 0.75 мм рт.ст.)
+        pressure_mm = int(pressure * 0.75)
+        
+        # Название города из ответа API (может отличаться от введенного)
+        city_display = weather_data.get('name', city_name)
+        country = weather_data.get('sys', {}).get('country', '')
+        location = f"{city_display}, {country}" if country else city_display
         
         result = (
-            f"🌍 **Погода в {city_name}**\n"
-            f"📅 {time_str}\n\n"
-            f"🌡 **Температура:** {temp_c}°C\n"
-            f"🤔 **Ощущается как:** {comfort_c}°C\n"
+            f"🌍 **Погода в {location}**\n"
+            f"📅 {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+            f"🌡 **Температура:** {temp:.1f}°C\n"
+            f"🤔 **Ощущается как:** {feels_like:.1f}°C\n"
             f"☁️ **Описание:** {description}\n"
             f"💧 **Влажность:** {humidity}%\n"
             f"📊 **Давление:** {pressure_mm} мм рт.ст.\n"
-            f"🌬 **Ветер:** {wind_speed} м/с, {wind_dir_text}\n"
+            f"🌬 **Ветер:** {wind_speed:.1f} м/с, {wind_dir_text}\n"
         )
         return result
     except (KeyError, TypeError) as e:
@@ -122,62 +167,122 @@ def format_weather(weather_data, city_name):
 # Обработчик команды /start
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, 
-                 "Привет! Я бот погоды от Gismeteo.\n"
-                 "Используй /weather <город> чтобы узнать погоду.\n"
-                 "Например: /weather Москва")
+    welcome_text = (
+        "👋 **Привет! Я бот погоды.**\n\n"
+        "🌤 **Команды:**\n"
+        "• `/weather <город>` - узнать погоду\n"
+        "• `/help` - справка\n\n"
+        "📝 **Примеры:**\n"
+        "`/weather Москва`\n"
+        "`/weather London`\n"
+        "`/weather New York`\n\n"
+        "Я понимаю русские и английские названия городов!"
+    )
+    bot.reply_to(message, welcome_text, parse_mode='Markdown')
+
+# Обработчик команды /help
+@bot.message_handler(commands=['help'])
+def send_help(message):
+    help_text = (
+        "📖 **Справка**\n\n"
+        "Я показываю текущую погоду в любом городе мира.\n\n"
+        "🔍 **Как использовать:**\n"
+        "Напиши `/weather Москва` или просто название города\n\n"
+        "🌍 **Подсказки:**\n"
+        "• Можно писать на русском или английском\n"
+        "• Для больших городов сработает сразу\n"
+        "• Для маленьких - уточните страну (London,GB)\n\n"
+        "❓ Если город не найден, попробуйте английское название"
+    )
+    bot.reply_to(message, help_text, parse_mode='Markdown')
 
 # Обработчик команды /weather
 @bot.message_handler(commands=['weather'])
 def send_weather(message):
-    # Проверка наличия токена Gismeteo
-    if GISMETEO_TOKEN == 'ваш_реальный_токен_gismeteo':
-        bot.reply_to(message, "❌ **Ошибка:** API Gismeteo не настроено. Пожалуйста, замените токен в коде.", parse_mode='Markdown')
-        return
-    
     # Получаем название города из сообщения
     try:
-        city_name = message.text.split(' ', 1)[1]
+        city_name = message.text.split(' ', 1)[1].strip()
+        if not city_name:
+            raise IndexError
     except IndexError:
-        bot.reply_to(message, "Пожалуйста, укажите город. Например: /weather Москва")
+        bot.reply_to(message, 
+                    "❌ **Пожалуйста, укажите город.**\n\n"
+                    "Пример: `/weather Москва`\n"
+                    "Или просто отправьте название города", 
+                    parse_mode='Markdown')
         return
     
     # Отправляем сообщение о начале поиска
-    msg = bot.reply_to(message, f"🔍 Ищу погоду для города {city_name}...")
+    msg = bot.reply_to(message, f"🔍 Ищу погоду для города *{city_name}*...", parse_mode='Markdown')
     
-    # Ищем город
-    search_result = search_city(city_name)
+    # Сохраняем оригинальное название для сообщения об ошибке
+    original_city = city_name
     
-    if not search_result or 'response' not in search_result or len(search_result['response']) == 0:
-        bot.edit_message_text(f"❌ Город '{city_name}' не найден. Попробуйте другое название.", 
-                            chat_id=message.chat.id, message_id=msg.message_id)
-        return
+    # Пытаемся получить погоду напрямую
+    weather = get_current_weather(city_name)
     
-    # Берем первый найденный город
-    city = search_result['response'][0]
-    city_id = city['id']
-    found_city_name = city['name']
+    # Если не получилось, пробуем через поиск
+    if not weather or 'main' not in weather:
+        print(f"Прямой запрос не удался, пробуем поиск для: {city_name}")
+        city_info = search_city_alternative(city_name)
+        
+        if city_info:
+            # Получаем погоду по координатам
+            weather = get_weather_by_coords(city_info['lat'], city_info['lon'])
+            if weather and 'main' in weather:
+                # Сохраняем найденное название
+                weather['name'] = city_info.get('local_names', {}).get('ru', city_info['name'])
     
-    bot.edit_message_text(f"✅ Город {found_city_name} найден. Получаю погоду...", 
-                        chat_id=message.chat.id, message_id=msg.message_id)
-    
-    # Получаем погоду
-    weather = get_current_weather(city_id)
-    
-    if weather and 'response' in weather:
-        weather_text = format_weather(weather, found_city_name)
+    if weather and 'main' in weather:
+        weather_text = format_weather(weather, original_city)
         bot.edit_message_text(weather_text, chat_id=message.chat.id, 
                             message_id=msg.message_id, parse_mode='Markdown')
     else:
-        bot.edit_message_text("❌ Не удалось получить данные о погоде. Попробуйте позже.", 
+        error_msg = (
+            f"❌ **Город '{original_city}' не найден.**\n\n"
+            "💡 **Попробуйте:**\n"
+            "• Проверить название\n"
+            "• Использовать английское название\n"
+            "• Указать город и страну (Moscow,RU)\n"
+            "• Написать на латинице\n\n"
+            "📝 **Примеры:**\n"
+            "`Moscow`\n"
+            "`London,GB`\n"
+            "`New York`"
+        )
+        bot.edit_message_text(error_msg, chat_id=message.chat.id, 
+                            message_id=msg.message_id, parse_mode='Markdown')
+
+# Обработчик текстовых сообщений (если просто отправить название города)
+@bot.message_handler(func=lambda message: message.text and not message.text.startswith('/'))
+def handle_city_name(message):
+    city_name = message.text.strip()
+    
+    # Отправляем сообщение о начале поиска
+    msg = bot.reply_to(message, f"🔍 Ищу погоду для города *{city_name}*...", parse_mode='Markdown')
+    
+    # Сохраняем оригинальное название
+    original_city = city_name
+    
+    # Пытаемся получить погоду
+    weather = get_current_weather(city_name)
+    
+    if not weather or 'main' not in weather:
+        city_info = search_city_alternative(city_name)
+        if city_info:
+            weather = get_weather_by_coords(city_info['lat'], city_info['lon'])
+            if weather and 'main' in weather:
+                weather['name'] = city_info.get('local_names', {}).get('ru', city_info['name'])
+    
+    if weather and 'main' in weather:
+        weather_text = format_weather(weather, original_city)
+        bot.edit_message_text(weather_text, chat_id=message.chat.id, 
+                            message_id=msg.message_id, parse_mode='Markdown')
+    else:
+        bot.edit_message_text(f"❌ Город '{original_city}' не найден. Попробуйте /help", 
                             chat_id=message.chat.id, message_id=msg.message_id)
 
-# Обработчик текстовых сообщений
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    bot.reply_to(message, "Используйте команду /weather <город>")
-
-# Flask маршруты для проверки работоспособности
+# Flask маршруты для Render
 @app.route('/')
 def index():
     return jsonify({
@@ -211,7 +316,7 @@ if __name__ == "__main__":
     print("="*50)
     print(f"📊 Статус:")
     print(f"  • Telegram токен: {'✅' if TELEGRAM_TOKEN else '❌'}")
-    print(f"  • Gismeteo токен: {'⚠️ не настроен' if GISMETEO_TOKEN == 'ваш_реальный_токен_gismeteo' else '✅'}")
+    print(f"  • OpenWeatherMap ключ: {'✅' if OPENWEATHER_API_KEY else '❌'}")
     print(f"  • Порт для веб-сервера: {PORT}")
     print("="*50 + "\n")
     
